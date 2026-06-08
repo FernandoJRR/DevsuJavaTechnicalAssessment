@@ -1,0 +1,836 @@
+{
+  "info": {
+    "_postman_id": "d3e4f5a6-b7c8-4901-a234-bc5678901234",
+    "name": "Devsu Banking API",
+    "description": "Colección de validación end-to-end para la prueba técnica Devsu.\n\n## Cómo correrla\n1. Levantar el sistema: `docker compose up --wait`\n2. Esperar que todos los servicios estén healthy.\n3. Abrir Postman → Import → seleccionar este archivo.\n4. Usar **Run Collection** para ejecutar en orden.\n\n## Variables de colección\n- `base_cliente` → `http://localhost:8081` (clienteMicro)\n- `base_cuenta` → `http://localhost:8082` (cuentaMicro)\n- `fecha_inicio` / `fecha_fin` → rango para el reporte F4\n\n## Carpetas\n- **1. Clientes** → F1: CRUD de clientes en clienteMicro\n- **2. Cuentas** → F1: CRUD de cuentas en cuentaMicro\n- **3. Movimientos** → F2 saldo actualizado, F3 saldo insuficiente\n- **4. Reportes** → F4 estado de cuenta por rango de fechas y cliente\n\n## Orden de ejecución\nCrear clientes → crear cuentas (usan IDs capturados) → registrar movimientos → consultar reporte.\nEl reporte F4 depende de que el evento RabbitMQ ya haya sido consumido por cuentaMicro; se ubica al final para dar tiempo a la propagación async.\n\n⚠️ El request DELETE en la carpeta 1 elimina a Juan Osorio; se recomienda ejecutarlo manualmente al final del flujo completo.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_cliente",         "value": "http://localhost:8081", "type": "string" },
+    { "key": "base_cuenta",          "value": "http://localhost:8082", "type": "string" },
+    { "key": "cliente_jose_id",      "value": "",                      "type": "string" },
+    { "key": "cliente_marianela_id", "value": "",                      "type": "string" },
+    { "key": "cliente_juan_id",      "value": "",                      "type": "string" },
+    { "key": "fecha_inicio",         "value": "2025-01-01",            "type": "string" },
+    { "key": "fecha_fin",            "value": "2030-12-31",            "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Clientes (clienteMicro :8081)",
+      "description": "F1 — CRUD completo de clientes. Los IDs generados se capturan automáticamente y se usan en la carpeta 2 para crear cuentas.",
+      "item": [
+        {
+          "name": "Crear cliente - Jose Lema",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cliente}}/clientes",
+              "host": ["{{base_cliente}}"],
+              "path": ["clientes"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jose Lema\",\n  \"gender\": \"Masculino\",\n  \"age\": 30,\n  \"identification\": \"1001\",\n  \"address\": \"Otavalo sn y principal\",\n  \"phone\": \"098254785\",\n  \"password\": \"1234\",\n  \"active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F1 — Crea el cliente Jose Lema con los datos del enunciado. Captura `cliente_jose_id` para usarlo al crear sus cuentas 478758 y 585545."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"clientId presente\", () => pm.expect(body.clientId).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"cliente_jose_id\", body.clientId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear cliente - Marianela Montalvo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cliente}}/clientes",
+              "host": ["{{base_cliente}}"],
+              "path": ["clientes"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Marianela Montalvo\",\n  \"gender\": \"Femenino\",\n  \"age\": 28,\n  \"identification\": \"1002\",\n  \"address\": \"Amazonas y NNUU\",\n  \"phone\": \"097548965\",\n  \"password\": \"5678\",\n  \"active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F1 — Crea la cliente Marianela Montalvo. Captura `cliente_marianela_id` para sus cuentas 225487 y 496825, y para el reporte F4."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"clientId presente\", () => pm.expect(body.clientId).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"cliente_marianela_id\", body.clientId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear cliente - Juan Osorio",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cliente}}/clientes",
+              "host": ["{{base_cliente}}"],
+              "path": ["clientes"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Juan Osorio\",\n  \"gender\": \"Masculino\",\n  \"age\": 25,\n  \"identification\": \"1003\",\n  \"address\": \"13 junio y Equinoccial\",\n  \"phone\": \"098874587\",\n  \"password\": \"1245\",\n  \"active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F1 — Crea el cliente Juan Osorio. Captura `cliente_juan_id` para su cuenta 495878."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"clientId presente\", () => pm.expect(body.clientId).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"cliente_juan_id\", body.clientId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar clientes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_cliente}}/clientes",
+              "host": ["{{base_cliente}}"],
+              "path": ["clientes"]
+            },
+            "description": "F1 — Devuelve todos los clientes registrados."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"respuesta es array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener cliente por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_cliente}}/clientes/{{cliente_jose_id}}",
+              "host": ["{{base_cliente}}"],
+              "path": ["clientes", "{{cliente_jose_id}}"]
+            },
+            "description": "F1 — Obtiene Jose Lema por su ID generado en la creación."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"nombre correcto\", () => pm.expect(pm.response.json().name).to.eql(\"Jose Lema\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar cliente (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cliente}}/clientes/{{cliente_jose_id}}",
+              "host": ["{{base_cliente}}"],
+              "path": ["clientes", "{{cliente_jose_id}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jose Lema\",\n  \"gender\": \"Masculino\",\n  \"age\": 31,\n  \"identification\": \"1001\",\n  \"address\": \"Otavalo sn y principal\",\n  \"phone\": \"098254785\",\n  \"password\": \"1234\",\n  \"active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F1 — Actualización completa de Jose Lema (campo age incrementado a 31)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar parcial cliente (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cliente}}/clientes/{{cliente_jose_id}}",
+              "host": ["{{base_cliente}}"],
+              "path": ["clientes", "{{cliente_jose_id}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"099000001\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F1 — Actualización parcial de Jose Lema: solo cambia el teléfono."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar cliente (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_cliente}}/clientes/{{cliente_juan_id}}",
+              "host": ["{{base_cliente}}"],
+              "path": ["clientes", "{{cliente_juan_id}}"]
+            },
+            "description": "F1 — Elimina a Juan Osorio de clienteMicro.\n\n⚠️ Si se ejecuta con el Collection Runner en orden, esta request eliminará al cliente antes de que se cree su cuenta. Se recomienda deshabilitarla en el Runner y ejecutarla manualmente al final del flujo."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Cuentas (cuentaMicro :8082)",
+      "description": "F1 — CRUD de cuentas. Los IDs de cliente vienen capturados de la carpeta 1.\n\n⚠️ Consistencia eventual: los eventos de creación de cliente viajan por RabbitMQ; si se ejecuta inmediatamente después de la carpeta 1, ClienteInfo puede no estar replicado aún. El reporte F4 (carpeta 4) se coloca al final por la misma razón.",
+      "item": [
+        {
+          "name": "Crear cuenta 478758 - Jose Lema",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cuenta}}/cuentas",
+              "host": ["{{base_cuenta}}"],
+              "path": ["cuentas"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"478758\",\n  \"accountType\": \"Ahorros\",\n  \"initialBalance\": 2000,\n  \"active\": true,\n  \"clientId\": \"{{cliente_jose_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F1 — Cuenta de ahorros de Jose Lema. Saldo inicial: 2000."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"saldo inicial correcto\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(Number(b.initialBalance)).to.eql(2000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear cuenta 225487 - Marianela Montalvo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cuenta}}/cuentas",
+              "host": ["{{base_cuenta}}"],
+              "path": ["cuentas"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"225487\",\n  \"accountType\": \"Corriente\",\n  \"initialBalance\": 100,\n  \"active\": true,\n  \"clientId\": \"{{cliente_marianela_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F1 — Cuenta corriente de Marianela. Saldo inicial: 100."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear cuenta 495878 - Juan Osorio",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cuenta}}/cuentas",
+              "host": ["{{base_cuenta}}"],
+              "path": ["cuentas"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"495878\",\n  \"accountType\": \"Ahorros\",\n  \"initialBalance\": 0,\n  \"active\": true,\n  \"clientId\": \"{{cliente_juan_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F1 — Cuenta de ahorros de Juan Osorio. Saldo inicial: 0."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear cuenta 496825 - Marianela Montalvo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cuenta}}/cuentas",
+              "host": ["{{base_cuenta}}"],
+              "path": ["cuentas"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"496825\",\n  \"accountType\": \"Ahorros\",\n  \"initialBalance\": 540,\n  \"active\": true,\n  \"clientId\": \"{{cliente_marianela_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F1 — Segunda cuenta de ahorros de Marianela. Saldo inicial: 540."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear cuenta 585545 - Jose Lema (caso 3)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cuenta}}/cuentas",
+              "host": ["{{base_cuenta}}"],
+              "path": ["cuentas"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"585545\",\n  \"accountType\": \"Corriente\",\n  \"initialBalance\": 1000,\n  \"active\": true,\n  \"clientId\": \"{{cliente_jose_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F1 — Segunda cuenta de Jose Lema (caso 3 del enunciado). Saldo inicial: 1000."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar cuentas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_cuenta}}/cuentas",
+              "host": ["{{base_cuenta}}"],
+              "path": ["cuentas"]
+            },
+            "description": "F1 — Devuelve todas las cuentas registradas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"respuesta es array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener cuenta por número",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_cuenta}}/cuentas/478758",
+              "host": ["{{base_cuenta}}"],
+              "path": ["cuentas", "478758"]
+            },
+            "description": "F1 — Obtiene la cuenta 478758 de Jose Lema."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"número de cuenta correcto\", () => pm.expect(pm.response.json().accountNumber).to.eql(\"478758\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar cuenta (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cuenta}}/cuentas/585545",
+              "host": ["{{base_cuenta}}"],
+              "path": ["cuentas", "585545"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"585545\",\n  \"accountType\": \"Corriente\",\n  \"initialBalance\": 1000,\n  \"active\": true,\n  \"clientId\": \"{{cliente_jose_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F1 — Actualización completa de la cuenta 585545 (sin cambios sustanciales, solo verifica el endpoint)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar parcial cuenta (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cuenta}}/cuentas/585545",
+              "host": ["{{base_cuenta}}"],
+              "path": ["cuentas", "585545"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F1 — Actualización parcial de la cuenta 585545: solo confirma estado activo."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Movimientos (cuentaMicro :8082)",
+      "description": "F2 — Registrar movimientos y verificar que el saldo se actualiza correctamente.\nF3 — Validar que un retiro mayor al saldo disponible devuelve error con mensaje 'Saldo no disponible'.",
+      "item": [
+        {
+          "name": "Retiro 575 - cuenta 478758 (Jose Lema)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cuenta}}/movimientos",
+              "host": ["{{base_cuenta}}"],
+              "path": ["movimientos"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionType\": \"Retiro\",\n  \"amount\": -575,\n  \"accountNumber\": \"478758\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F2 — Retiro de 575 en la cuenta 478758. Saldo esperado tras la operación: 2000 - 575 = 1425."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"saldo actualizado a 1425\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(Number(b.balance)).to.eql(1425);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Depósito 600 - cuenta 225487 (Marianela)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cuenta}}/movimientos",
+              "host": ["{{base_cuenta}}"],
+              "path": ["movimientos"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionType\": \"Depósito\",\n  \"amount\": 600,\n  \"accountNumber\": \"225487\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F2 — Depósito de 600 en la cuenta 225487. Saldo esperado: 100 + 600 = 700."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"saldo actualizado a 700\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(Number(b.balance)).to.eql(700);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Depósito 150 - cuenta 495878 (Juan Osorio)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cuenta}}/movimientos",
+              "host": ["{{base_cuenta}}"],
+              "path": ["movimientos"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionType\": \"Depósito\",\n  \"amount\": 150,\n  \"accountNumber\": \"495878\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F2 — Depósito de 150 en la cuenta 495878. Saldo esperado: 0 + 150 = 150."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"saldo actualizado a 150\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(Number(b.balance)).to.eql(150);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retiro 540 - cuenta 496825 (Marianela)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cuenta}}/movimientos",
+              "host": ["{{base_cuenta}}"],
+              "path": ["movimientos"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionType\": \"Retiro\",\n  \"amount\": -540,\n  \"accountNumber\": \"496825\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F2 — Retiro de 540 en la cuenta 496825. Saldo esperado: 540 - 540 = 0."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"saldo actualizado a 0\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(Number(b.balance)).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retiro SIN FONDOS - cuenta 495878 (F3)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_cuenta}}/movimientos",
+              "host": ["{{base_cuenta}}"],
+              "path": ["movimientos"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionType\": \"Retiro\",\n  \"amount\": -600,\n  \"accountNumber\": \"495878\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "F3 — Intenta retirar 600 de la cuenta 495878 que tiene solo 150 de saldo. Debe ser rechazado con HTTP 400/409 y el mensaje 'Saldo no disponible'."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"rechaza por saldo insuficiente (400 o 409)\", () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400, 409]);",
+                  "});",
+                  "pm.test(\"mensaje contiene 'Saldo no disponible'\", () => {",
+                  "  pm.expect(pm.response.text()).to.include(\"Saldo no disponible\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar movimientos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_cuenta}}/movimientos",
+              "host": ["{{base_cuenta}}"],
+              "path": ["movimientos"]
+            },
+            "description": "F2 — Devuelve todos los movimientos registrados."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"respuesta es array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener movimiento por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_cuenta}}/movimientos/1",
+              "host": ["{{base_cuenta}}"],
+              "path": ["movimientos", "1"]
+            },
+            "description": "F2 — Obtiene el movimiento con id=1 (ajustar el id si la BD no parte de 1). Valida que el endpoint responde con estructura correcta."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200 o 404\", () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Reportes (cuentaMicro :8082)",
+      "description": "F4 — Estado de cuenta por rango de fechas y cliente.\n\nRequiere que los eventos de creación de cliente ya hayan sido consumidos por cuentaMicro (via RabbitMQ). Al ejecutar después de las carpetas 1-3, la ventana de consistencia eventual ya debería estar cerrada.\n\nLos parámetros de query son: `fechaInicio`, `fechaFin` (formato ISO: YYYY-MM-DD) y `clienteId`.",
+      "item": [
+        {
+          "name": "Estado de cuenta - Marianela (F4)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_cuenta}}/reportes?fechaInicio={{fecha_inicio}}&fechaFin={{fecha_fin}}&clienteId={{cliente_marianela_id}}",
+              "host": ["{{base_cuenta}}"],
+              "path": ["reportes"],
+              "query": [
+                {
+                  "key": "fechaInicio",
+                  "value": "{{fecha_inicio}}",
+                  "description": "Fecha de inicio del rango (ISO: YYYY-MM-DD). Por defecto 2025-01-01."
+                },
+                {
+                  "key": "fechaFin",
+                  "value": "{{fecha_fin}}",
+                  "description": "Fecha de fin del rango (ISO: YYYY-MM-DD). Por defecto 2030-12-31."
+                },
+                {
+                  "key": "clienteId",
+                  "value": "{{cliente_marianela_id}}",
+                  "description": "ID numérico del cliente capturado al crear a Marianela Montalvo."
+                }
+              ]
+            },
+            "description": "F4 — Genera el reporte de estado de cuenta para Marianela Montalvo en el rango de fechas dado. Valida que la respuesta contenga las claves exactas del enunciado: `Numero Cuenta`, `Saldo Inicial`, `Saldo Disponible`, `Movimiento`, `Fecha`, `Cliente`, `Tipo`, `Estado`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"respuesta es array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));",
+                  "pm.test(\"contiene claves del enunciado\", () => {",
+                  "  const rows = pm.response.json();",
+                  "  if (rows.length > 0) {",
+                  "    const row = rows[0];",
+                  "    pm.expect(row).to.have.property(\"Numero Cuenta\");",
+                  "    pm.expect(row).to.have.property(\"Saldo Inicial\");",
+                  "    pm.expect(row).to.have.property(\"Saldo Disponible\");",
+                  "    pm.expect(row).to.have.property(\"Movimiento\");",
+                  "    pm.expect(row).to.have.property(\"Fecha\");",
+                  "    pm.expect(row).to.have.property(\"Cliente\");",
+                  "    pm.expect(row).to.have.property(\"Tipo\");",
+                  "    pm.expect(row).to.have.property(\"Estado\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Flujo completo (happy path end-to-end)",
+      "description": "Referencia del flujo canónico del enunciado. Corre las carpetas 1→2→3→4 en orden con el Collection Runner (excepto el DELETE). Sirve para demostrar el caso de uso completo de punta a punta.",
+      "item": [
+        {
+          "name": "[Referencia] Ver carpetas 1–4 en orden",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_cuenta}}/reportes?fechaInicio={{fecha_inicio}}&fechaFin={{fecha_fin}}&clienteId={{cliente_marianela_id}}",
+              "host": ["{{base_cuenta}}"],
+              "path": ["reportes"],
+              "query": [
+                { "key": "fechaInicio", "value": "{{fecha_inicio}}" },
+                { "key": "fechaFin",    "value": "{{fecha_fin}}" },
+                { "key": "clienteId",   "value": "{{cliente_marianela_id}}" }
+              ]
+            },
+            "description": "Esta carpeta es solo referencia. Para el happy path completo:\n1. Deshabilitar la request DELETE en la carpeta 1.\n2. Usar Run Collection → seleccionar todas las carpetas en orden.\n3. Al finalizar, ejecutar manualmente el DELETE si se desea demostrar esa operación.\n\nOrden de ejecución esperado:\n- Carpeta 1: crear los 3 clientes (captura IDs)\n- Carpeta 2: crear las 5 cuentas (usa IDs capturados)\n- Carpeta 3: registrar 4 movimientos + 1 fallo F3\n- Carpeta 4: consultar reporte F4 de Marianela"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

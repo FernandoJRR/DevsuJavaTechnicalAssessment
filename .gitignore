@@ -1,0 +1,79 @@
+# ===== Java / Maven =====
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# Maven wrapper (keep the wrapper scripts, ignore downloaded dist)
+.mvn/wrapper/maven-wrapper.properties
+
+# ===== Spring Boot =====
+*.log
+spring.log
+application-local.yml
+application-local.yaml
+application-local.properties
+
+# ===== Environment / secrets =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ===== IDEs =====
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+
+# NetBeans
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# ===== OS =====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===== Docker =====
+# (compose files and Dockerfiles ARE committed — only ignore local overrides)
+docker-compose.override.yml
+
+# ===== Postgres local volumes (if you bind-mount data locally) =====
+pgdata/
+postgres-data/
+**/pgdata/
+
+# ===== Test / coverage =====
+*.exec
+.jacoco/
+coverage/

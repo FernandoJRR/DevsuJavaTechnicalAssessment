@@ -1,0 +1,100 @@
+services:
+  postgres-cliente:
+    image: postgres:16
+    container_name: postgres-cliente
+    environment:
+      POSTGRES_DB: db_clientes
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-cliente-data:/var/lib/postgresql/data
+      - ./clienteMicro/BaseDatos.sql:/docker-entrypoint-initdb.d/BaseDatos.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db_clientes"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cliente-micro:
+    build:
+      context: ./clienteMicro
+      dockerfile: Dockerfile
+    container_name: cliente-micro
+    restart: on-failure
+    depends_on:
+      postgres-cliente:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres-cliente:5432/db_clientes
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    ports:
+      - "8081:8081"
+
+  postgres-cuenta:
+    image: postgres:16
+    container_name: postgres-cuenta
+    environment:
+      POSTGRES_DB: db_cuentas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-cuenta-data:/var/lib/postgresql/data
+      - ./cuentaMicro/BaseDatos.sql:/docker-entrypoint-initdb.d/BaseDatos.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db_cuentas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  cuenta-micro:
+    build:
+      context: ./cuentaMicro
+      dockerfile: Dockerfile
+    container_name: cuenta-micro
+    restart: on-failure
+    depends_on:
+      postgres-cuenta:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres-cuenta:5432/db_cuentas
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+    ports:
+      - "8082:8082"
+
+volumes:
+  postgres-cliente-data:
+  postgres-cuenta-data:
