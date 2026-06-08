@@ -101,6 +101,8 @@ Si ambos responden con JSON, los servicios y las bases de datos están operativo
 > **Orden obligatorio:** crear clientes → crear cuentas → registrar movimientos → consultar reporte.
 > El reporte (F4) depende de que los eventos de cliente hayan sido consumidos por cuentaMicro vía RabbitMQ (consistencia eventual). Al ejecutar la colección en orden ya hay tiempo suficiente para la propagación.
 
+> **Delay entre requests:** la colección incluye un pre-request script a nivel de colección que introduce una pausa de **3 000 ms** antes de cada request. Esto garantiza que los eventos de RabbitMQ se propaguen correctamente entre pasos, especialmente entre la creación de clientes (carpeta 1) y la creación de cuentas (carpeta 2).
+
 ### Opción 2 — Swagger
 
 - http://localhost:8081/swagger-ui.html → endpoints de clientes

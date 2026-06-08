@@ -5,6 +5,17 @@
     "description": "Colección de validación end-to-end para la prueba técnica Devsu.\n\n## Cómo correrla\n1. Levantar el sistema: `docker compose up --wait`\n2. Esperar que todos los servicios estén healthy.\n3. Abrir Postman → Import → seleccionar este archivo.\n4. Usar **Run Collection** para ejecutar en orden.\n\n## Variables de colección\n- `base_cliente` → `http://localhost:8081` (clienteMicro)\n- `base_cuenta` → `http://localhost:8082` (cuentaMicro)\n- `fecha_inicio` / `fecha_fin` → rango para el reporte F4\n\n## Carpetas\n- **1. Clientes** → F1: CRUD de clientes en clienteMicro\n- **2. Cuentas** → F1: CRUD de cuentas en cuentaMicro\n- **3. Movimientos** → F2 saldo actualizado, F3 saldo insuficiente\n- **4. Reportes** → F4 estado de cuenta por rango de fechas y cliente\n\n## Orden de ejecución\nCrear clientes → crear cuentas (usan IDs capturados) → registrar movimientos → consultar reporte.\nEl reporte F4 depende de que el evento RabbitMQ ya haya sido consumido por cuentaMicro; se ubica al final para dar tiempo a la propagación async.\n\n⚠️ El request DELETE en la carpeta 1 elimina a Juan Osorio; se recomienda ejecutarlo manualmente al final del flujo completo.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "await new Promise(resolve => setTimeout(resolve, 3000));"
+        ]
+      }
+    }
+  ],
   "variable": [
     { "key": "base_cliente",         "value": "http://localhost:8081", "type": "string" },
     { "key": "base_cuenta",          "value": "http://localhost:8082", "type": "string" },
