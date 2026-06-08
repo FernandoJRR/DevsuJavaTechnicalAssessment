@@ -34,10 +34,10 @@ public class AccountService implements AccountUseCase {
 
     @Override
     public Account update(String accountNumber, Account account) {
-        if (!repositoryPort.existsById(accountNumber)) {
-            throw new AccountNotFoundException(accountNumber);
-        }
+        Account existing = repositoryPort.findById(accountNumber)
+                .orElseThrow(() -> new AccountNotFoundException(accountNumber));
         account.setAccountNumber(accountNumber);
+        account.setCurrentBalance(existing.getCurrentBalance());
         return repositoryPort.save(account);
     }
 

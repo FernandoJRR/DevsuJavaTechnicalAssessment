@@ -12,7 +12,8 @@
     { "key": "cliente_marianela_id", "value": "",                      "type": "string" },
     { "key": "cliente_juan_id",      "value": "",                      "type": "string" },
     { "key": "fecha_inicio",         "value": "2025-01-01",            "type": "string" },
-    { "key": "fecha_fin",            "value": "2030-12-31",            "type": "string" }
+    { "key": "fecha_fin",            "value": "2030-12-31",            "type": "string" },
+    { "key": "movimiento_id",        "value": "",                      "type": "string" }
   ],
   "item": [
     {
@@ -540,10 +541,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
                   "pm.test(\"saldo actualizado a 1425\", () => {",
-                  "  const b = pm.response.json();",
                   "  pm.expect(Number(b.balance)).to.eql(1425);",
-                  "});"
+                  "});",
+                  "pm.collectionVariables.set(\"movimiento_id\", b.id);"
                 ]
               }
             }
@@ -713,11 +715,11 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_cuenta}}/movimientos/1",
+              "raw": "{{base_cuenta}}/movimientos/{{movimiento_id}}",
               "host": ["{{base_cuenta}}"],
-              "path": ["movimientos", "1"]
+              "path": ["movimientos", "{{movimiento_id}}"]
             },
-            "description": "F2 — Obtiene el movimiento con id=1 (ajustar el id si la BD no parte de 1). Valida que el endpoint responde con estructura correcta."
+            "description": "F2 — Obtiene el movimiento por su UUID capturado del primer retiro. Valida que el endpoint responde con estructura correcta."
           },
           "event": [
             {
